@@ -35,15 +35,13 @@ def load_logs(file_path):
     else:
         raise ValueError("Unsupported file format. Please provide CSV or JSON.")
 
-def create_activity_graph(logs_df):
-    G = nx.Graph()
-    for _, row in logs_df.iterrows():
-        src_dst = (row['src_ip'], row['dst_ip'])
-        if G.has_edge(src_dst):
-            G[src_dst[0]][src_dst[1]]['weight'] += 1
-        else:
-            G.add_edge(src_dst[0], src_dst[1], weight=1)
-    return G
+def analyze_logs(logs_df):
+    suspicious_ips = []
+    ip_counts = logs_df['src_ip'].value_counts()
+    for ip, count in ip_counts.items():
+        if count > 10:
+            suspicious_ips.append(ip)
+    return suspicious_ips
 
 def visualize_graph(G):
     plt.figure(figsize=(10, 6))
