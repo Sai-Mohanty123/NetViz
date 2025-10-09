@@ -1,0 +1,78 @@
+import csv
+import json
+import pandas as pd
+from datetime import datetime
+import networkx as nx
+import matplotlib.pyplot as plt
+
+def load_logs_csv(file_path):
+    logs = []
+    with open(file_path, mode='r') as file:
+        reader = csv.DictReader(file)
+        for row in reader:
+            log_entry = {
+                'timestamp': datetime.strptime(row['timestamp'], '%Y-%m-%d %H:%M:%S'),
+                'src_ip': row['src_ip'],
+                'dst_ip': row['dst_ip'],
+                'port': row['port'],
+                'process': row['process']
+            }
+            logs.append(log_entry)
+    return pd.DataFrame(logs)
+
+def load_logs_json(file_path):
+    with open(file_path, 'r') as file:
+        logs = json.load(file)
+    for log in logs:
+        log['timestamp'] = datetime.strptime(log['timestamp'], '%Y-%m-%d %H:%M:%S')
+    return pd.DataFrame(logs)
+
+def load_logs(file_path):
+    if file_path.endswith('.csv'):
+        return load_logs_csv(file_path)
+    elif file_path.endswith('.json'):
+        return load_logs_json(file_path)
+    else:
+        raise ValueError("Unsupported file format. Please provide CSV or JSON.")
+
+def create_activity_graph(logs_df):
+    G = nx.Graph()
+    for _, row in logs_df.iterrows():
+        src_dst = (row['src_ip'], row['dst_ip'])
+        if G.has_edge(src_dst):
+            G[src_dst[0]][src_dst[1]]['weight'] += 1
+        else:
+            G.add_edge(src_dst[0], src_dst[1], weight=1)
+    return G
+
+def visualize_graph(G):
+    plt.figure(figsize=(10, 6))
+    pos = nx.spring_layout(G)
+    nx.draw_networkx_nodes(G, pos, node_size=500)
+    nx.draw_networkx_edges(G, pos, width=1.0, alpha=0.7)
+    nx.draw_networkx_labels(G, pos, font_size=10, font_weight='bold')
+    edge_labels = nx.get_edge_attributes(G, 'weight')
+    nx.draw_networkx_edge_labels(G, pos, edge_labels=edge_labels)
+    plt.title("Log Activity Network")
+    plt.show()
+
+def analyze_logs(logs_df):
+    suspicious_ips = []
+    ip_counts = logs_df['src_ip'].value_counts()
+    for ip, count in ip_counts.items():
+        if count > 10:
+            suspicious_ips.append(ip)
+    return suspicious_ips
+
+def main(file_path):
+    logs_df = load_logs(file_path)
+    print("Loaded Logs:")
+    print(logs_df.head())
+    suspicious_ips = analyze_logs(logs_df)
+    print("\nSuspicious IPs (More than 10 interactions):", suspicious_ips)
+    G = create_activity_graph(logs_df)
+    visualize_graph(G)
+
+if __name__ == "__main__":
+    file_path = "sample_logs.csv"
+    main(file_path)
